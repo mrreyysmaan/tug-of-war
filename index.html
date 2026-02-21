@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>English Tug of War!</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #87CEEB; /* Matches the sky */
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #startScreen, #gameScreen {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #gameScreen { display: none; }
+
+        h1 { color: #fff; text-align: center; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        
+        .menu-box {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            width: 100%;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #b2ebf2;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .start-btn {
+            width: 100%;
+            background-color: #ffca28;
+            color: #333;
+            font-size: 20px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #ffb300;
+        }
+        .start-btn:active { transform: translateY(4px); box-shadow: 0 0 0; }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            border-radius: 12px;
+            width: 100%;
+            height: 250px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            background-color: #87CEEB;
+        }
+
+        /* The center "Win Line" overlay */
+        .center-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 4px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-left: 2px dashed red;
+            transform: translateX(-50%);
+            pointer-events: none; /* So it doesn't block clicks */
+        }
+
+        .turn-box {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 20px;
+            margin-bottom: 15px;
+            color: white;
+        }
+        .question {
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 15px;
+            color: #333;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            width: 100%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            width: 100%;
+        }
+        .opt-btn {
+            background-color: #26c6da;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 15px 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #00acc1;
+        }
+        .opt-btn:active { transform: translateY(4px); box-shadow: 0 0 0; }
+        #message { margin-top: 15px; font-weight: bold; font-size: 18px; min-height: 25px; text-align: center; color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+
+    <div id="startScreen">
+        <h1>🏴 English Tug of War 🏴</h1>
+        <div class="menu-box">
+            <label><strong>Left Team Name:</strong></label>
+            <input type="text" id="team1Input" value="Boys">
+            
+            <label><strong>Right Team Name:</strong></label>
+            <input type="text" id="team2Input" value="Girls">
+            
+            <label><strong>Select Difficulty:</strong></label>
+            <select id="difficultyInput">
+                <option value="primary">Primary School (Basic)</option>
+                <option value="secondary">Secondary School (Advanced)</option>
+            </select>
+            
+            <button class="start-btn" onclick="startGame()">START GAME!</button>
+        </div>
+    </div>
+
+    <div id="gameScreen">
+        <div class="canvas-container">
+            <canvas id="gameCanvas" width="600" height="250"></canvas>
+            <div class="center-line"></div>
+        </div>
+        
+        <div class="turn-box" id="turnIndicator">Turn: Boys</div>
+        <div class="question" id="questionText">Loading question...</div>
+        <div class="options-grid" id="optionsGrid"></div>
+        <div id="message"></div>
+    </div>
+
+    <script>
+        // --- Question Databases ---
+        const questionBanks = {
+            primary: [
+                { q: "Choose the correct spelling:", options: ["Elephant", "Elefant", "Alephant", "Elepant"], answer: 0 },
+                { q: "Ali ___ an apple every day.", options: ["eat", "eats", "eating", "ate"], answer: 1 },
+                { q: "What is the opposite of 'Hot'?", options: ["Warm", "Cold", "Boiling", "Sun"], answer: 1 },
+                { q: "Look at ___ beautiful bird!", options: ["that", "these", "those", "them"], answer: 0 }
+            ],
+            secondary: [
+                { q: "Select the correct spelling:", options: ["Accommodate", "Acommodate", "Accomodate", "Acomodate"], answer: 0 },
+                { q: "If I ___ you, I would study harder.", options: ["am", "was", "were", "been"], answer: 2 },
+                { q: "What is a synonym for 'Meticulous'?", options: ["Careless", "Thorough", "Angry", "Fast"], answer: 1 },
+                { q: "She has been working here ___ 2018.", options: ["since", "for", "in", "from"], answer: 0 }
+            ]
+        };
+
+        let currentQuestions = [];
+        let t1Name = "Boys", t2Name = "Girls";
+        let turn = 1; 
+        let ropePos = 0; 
+        const pullStrength = 20;
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // --- Load Single Image ---
+        const mainImage = new Image();
+        mainImage.src = 'image.png'; // Make sure your single image is named exactly this!
+
+        // --- Animation Loop ---
+        function drawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Time-based wobble to look like they are struggling
+            const time = Date.now() / 150;
+            const wobbleY = Math.sin(time) * 2;
+            
+            if (mainImage.complete && mainImage.naturalWidth !== 0) {
+                // We draw the image wider than the canvas so it can slide back and forth
+                const imgWidth = canvas.width * 1.6; 
+                const imgHeight = canvas.height;
+                
+                // Calculate how far to slide the image based on the score (ropePos)
+                // When ropePos changes, the image shifts left or right
+                const maxSlide = (imgWidth - canvas.width) / 2;
+                const slideX = (ropePos / 100) * maxSlide;
+                
+                // Base center position + slide offset
+                const drawX = -((imgWidth - canvas.width) / 2) + slideX;
+                const drawY = wobbleY;
+
+                ctx.drawImage(mainImage, drawX, drawY, imgWidth, imgHeight);
+            } else {
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px Arial';
+                ctx.fillText("Loading image.png...", canvas.width/2 - 80, canvas.height/2);
+            }
+
+            requestAnimationFrame(drawCanvas);
+        }
+
+        // --- Game Logic ---
+        function startGame() {
+            t1Name = document.getElementById('team1Input').value || "Boys";
+            t2Name = document.getElementById('team2Input').value || "Girls";
+            const diff = document.getElementById('difficultyInput').value;
+            
+            currentQuestions = [...questionBanks[diff]];
+            ropePos = 0;
+            turn = 1;
+
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'flex';
+            
+            drawCanvas();
+            loadNextQuestion();
+        }
+
+        function loadNextQuestion() {
+            if (currentQuestions.length === 0) {
+                const diff = document.getElementById('difficultyInput').value;
+                currentQuestions = [...questionBanks[diff]];
+            }
+
+            const qIndex = Math.floor(Math.random() * currentQuestions.length);
+            const qData = currentQuestions[qIndex];
+            currentQuestions.splice(qIndex, 1);
+
+            document.getElementById('questionText').innerText = qData.q;
+            
+            const grid = document.getElementById('optionsGrid');
+            grid.innerHTML = '';
+            
+            qData.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'opt-btn';
+                btn.innerText = opt;
+                btn.onclick = () => checkAnswer(idx, qData.answer);
+                grid.appendChild(btn);
+            });
+
+            updateUI();
+        }
+
+        function updateUI() {
+            const turnBox = document.getElementById('turnIndicator');
+            if (turn === 1) {
+                turnBox.innerText = `${t1Name}'s Turn!`;
+                turnBox.style.backgroundColor = '#42a5f5';
+            } else {
+                turnBox.innerText = `${t2Name}'s Turn!`;
+                turnBox.style.backgroundColor = '#ab47bc';
+            }
+        }
+
+        function checkAnswer(selected, correct) {
+            const msgBox = document.getElementById('message');
+            
+            if (selected === correct) {
+                msgBox.innerText = "✅ CORRECT! HEAVE!!";
+                // Shift image left for boys (-), right for girls (+)
+                ropePos += (turn === 1) ? -pullStrength : pullStrength;
+                checkWin();
+            } else {
+                msgBox.innerText = "❌ WRONG! The rope slips!";
+            }
+
+            const btns = document.querySelectorAll('.opt-btn');
+            btns.forEach(b => b.disabled = true);
+
+            setTimeout(() => {
+                msgBox.innerText = "";
+                turn = (turn === 1) ? 2 : 1;
+                loadNextQuestion();
+            }, 2000);
+        }
+
+        function checkWin() {
+            setTimeout(() => {
+                if (ropePos <= -100) {
+                    alert(`🎉 ${t1Name.toUpperCase()} WIN! 🎉`);
+                    location.reload();
+                } else if (ropePos >= 100) {
+                    alert(`🎉 ${t2Name.toUpperCase()} WIN! 🎉`);
+                    location.reload();
+                }
+            }, 500);
+        }
+    </script>
+</body>
+</html>
